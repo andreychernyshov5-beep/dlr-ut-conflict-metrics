@@ -1,0 +1,7 @@
+pandas>=2.0
+numpy>=1.22
+matplotlib>=3.7
+seaborn>=0.12
+tqdm>=4.65
+requests>=2.31
+conflict-metrics @ git+https://github.com/andreychernyshov5-beep/conflict-metrics.git

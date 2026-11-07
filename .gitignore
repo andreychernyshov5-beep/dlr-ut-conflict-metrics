@@ -1,0 +1,39 @@
+# Data and results
+data/
+results/
+figures/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+build/
+dist/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Virtual environments
+venv/
+env/
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Explicitly ignore generated files
+*.csv
+*.png
+*.txt
+!LICENSE
+!requirements.txt
