@@ -11,6 +11,12 @@ Outputs:
 
 Usage:
     python src/tables.py
+
+Note on encoding:
+    All CSVs are written and read as UTF-8. This is required because pair
+    types contain the Unicode arrow '→' (U+2192). Writing with the default
+    locale encoding (e.g. cp1251 on Windows) corrupts the arrow into
+    mojibake such as 'â†’' or '‚Üí'.
 """
 
 import json
@@ -28,6 +34,9 @@ from config import (
     TABLE_MEAN_PSI,
 )
 
+# Single source of truth for CSV encoding.
+CSV_ENCODING = "utf-8"
+
 
 def load_results(csv_path: Path) -> pd.DataFrame:
     """Load the aggregated results CSV and parse the psi_frame JSON column."""
@@ -36,7 +45,7 @@ def load_results(csv_path: Path) -> pd.DataFrame:
             f"Aggregated results not found: {csv_path}. "
             "Run `python src/run_all.py` first."
         )
-    df = pd.read_csv(csv_path)
+    df = pd.read_csv(csv_path, encoding=CSV_ENCODING)
     if "psi_frame" in df.columns:
         df["psi_frame"] = df["psi_frame"].apply(
             lambda s: json.loads(s) if isinstance(s, str) else {}
@@ -145,19 +154,19 @@ def main() -> int:
 
     # Table 1
     t1 = build_dominant_pair_types(df)
-    t1.to_csv(TABLE_DOMINANT_PAIR_TYPES, index=False)
+    t1.to_csv(TABLE_DOMINANT_PAIR_TYPES, index=False, encoding=CSV_ENCODING)
     print(f"[tables] Saved {TABLE_DOMINANT_PAIR_TYPES} ({len(t1)} rows)")
     print(t1.to_string(index=False))
 
     # Table 2
     t2 = build_mean_psi_by_pair_type(df)
-    t2.to_csv(TABLE_MEAN_PSI, index=False)
+    t2.to_csv(TABLE_MEAN_PSI, index=False, encoding=CSV_ENCODING)
     print(f"\n[tables] Saved {TABLE_MEAN_PSI} ({len(t2)} rows)")
     print(t2.to_string(index=False))
 
     # Table 3
     t3 = build_c_all_vs_c_median_by_direction(df)
-    t3.to_csv(TABLE_C_ALL_VS_C_MEDIAN, index=False)
+    t3.to_csv(TABLE_C_ALL_VS_C_MEDIAN, index=False, encoding=CSV_ENCODING)
     print(f"\n[tables] Saved {TABLE_C_ALL_VS_C_MEDIAN} ({len(t3)} rows)")
     print(t3.to_string(index=False))
 
