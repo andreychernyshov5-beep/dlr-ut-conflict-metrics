@@ -6,7 +6,8 @@ For each file and each direction (laneID), the script:
   2. Builds leader-follower pairs.
   3. Calibrates the TTC threshold (5th percentile of the empirical TTC).
   4. Adds conflict flags (TTC and DRAC).
-  5. Computes psi, M, Delta, r, C, and per-pair-type psi.
+  5. Computes psi, M, Delta, r, C, C_median_10s, C_mean_10s, C_std_10s,
+     and per-pair-type psi.
   6. Saves the aggregated results to results/conflict_metrics_all_day.csv.
 
 Usage:
@@ -32,8 +33,42 @@ from config import (
     DLRUT_TRAJECTORIES_DIR,
     N_FILES,
     TTC_PERCENTILE,
+    WINDOW_FRAMES,
 )
 from preprocess import preprocess_all
+
+
+def sliding_windows(sorted_frames: np.ndarray, win_frames: int, step_frac: float = 0.5):
+    """
+    Split a sorted array of frame indices into overlapping windows.
+
+    Parameters
+    ----------
+    sorted_frames : np.ndarray
+        Sorted unique frame indices.
+    win_frames : int
+        Window size in frames.
+    step_frac : float
+        Step as a fraction of the window size.
+
+    Returns
+    -------
+    list[tuple[int, int]]
+        List of (start_frame, end_frame) pairs (inclusive).
+    """
+    n = len(sorted_frames)
+    if n == 0:
+        return []
+    step = max(1, int(win_frames * step_frac))
+    wins = []
+    i = 0
+    while i < n:
+        j = min(i + win_frames, n)
+        wins.append((sorted_frames[i], sorted_frames[j - 1]))
+        if j == n:
+            break
+        i += step
+    return wins
 
 
 def analyze_file_lane(
@@ -91,12 +126,30 @@ def analyze_file_lane(
         ttc_thr = calibrate_ttc(pairs)
     pairs = add_conflict_flags(pairs, ttc_thr, DRAC_THRESHOLD)
 
-    # Compute C
+    # Compute C over all frames
     n_frames_total = pairs["frame"].nunique()
     if n_frames_total == 0:
         return None
     n_frames_conflict = pairs.loc[pairs["is_conflict"], "frame"].nunique()
     C = n_frames_conflict / n_frames_total
+
+    # Compute C over sliding windows (10 s)
+    frame_list = np.sort(pairs["frame"].unique())
+    Cw = []
+    for f0, f1 in sliding_windows(frame_list, WINDOW_FRAMES):
+        m = pairs[(pairs["frame"] >= f0) & (pairs["frame"] <= f1)]
+        nfr = m["frame"].nunique()
+        if nfr == 0:
+            continue
+        ncf = m.loc[m["is_conflict"], "frame"].nunique()
+        Cw.append(ncf / nfr)
+
+    if Cw:
+        C_median = float(np.median(Cw))
+        C_mean = float(np.mean(Cw))
+        C_std = float(np.std(Cw))
+    else:
+        C_median = C_mean = C_std = float("nan")
 
     # Compute psi per pair type
     psi_frame: dict[str, float] = {}
@@ -123,6 +176,9 @@ def analyze_file_lane(
         "n_pairs": int(len(pairs)),
         "n_vehicles": int(df_lane["agent_id"].nunique()),
         "C": float(C),
+        "C_median_10s": C_median,
+        "C_mean_10s": C_mean,
+        "C_std_10s": C_std,
         "M": float(M),
         "Delta": float(Delta),
         "r": float(r),
@@ -241,6 +297,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    # Import json here to avoid shadowing at module level
-    import json
     sys.exit(main())
