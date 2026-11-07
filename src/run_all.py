@@ -241,7 +241,7 @@ def run_all(
 
     # 4. Save
     output_csv.parent.mkdir(parents=True, exist_ok=True)
-    results_df.to_csv(output_csv, index=False)
+    results_df.to_csv(output_csv, index=False, encoding="utf-8")
     print(f"[run_all] Saved {len(results_df)} rows to {output_csv}")
 
     return results_df

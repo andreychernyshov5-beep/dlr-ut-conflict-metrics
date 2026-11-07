@@ -38,7 +38,7 @@ def load_results(csv_path: Path) -> pd.DataFrame:
             f"Aggregated results not found: {csv_path}. "
             "Run `python src/run_all.py` first."
         )
-    df = pd.read_csv(csv_path)
+    df = pd.read_csv(csv_path, encoding="utf-8")
     df["start_time"] = pd.to_datetime(
         df["time_range"].str.split("_").str[0],
         format="%y%m%d-%H%M%S",
