@@ -95,7 +95,26 @@ def analyze_lane(df_lane, lane_id):
         return None
 
     pairs = add_conflict_flags(pairs, ttc_thr, DRAC_THRESHOLD)
-    pairs[["leader_id", "follower_id"]] = pairs["pair_id"].str.split("__", expand=True)
+
+    # Compatibility with both older and newer conflict_metrics:
+    # newer build_pairs returns v_follower/v_leader but not leader_id/follower_id;
+    # older returns leader_id/follower_id but not velocities.
+    if "leader_id" not in pairs.columns or "follower_id" not in pairs.columns:
+        pairs[["leader_id", "follower_id"]] = pairs["pair_id"].str.split("__", expand=True)
+
+    if "v_follower" not in pairs.columns or "v_leader" not in pairs.columns:
+        spd = df_lane[["frame", "agent_id", "vx"]].copy()
+        spd["agent_id"] = spd["agent_id"].astype(str)
+        if "v_follower" not in pairs.columns:
+            pairs = pairs.merge(
+                spd.rename(columns={"agent_id": "follower_id", "vx": "v_follower"}),
+                on=["frame", "follower_id"], how="left",
+            )
+        if "v_leader" not in pairs.columns:
+            pairs = pairs.merge(
+                spd.rename(columns={"agent_id": "leader_id", "vx": "v_leader"}),
+                on=["frame", "leader_id"], how="left",
+            )
 
     if "acceleration" in df_lane.columns:
         acc = df_lane[["frame", "agent_id", "acceleration"]].copy()
@@ -110,16 +129,6 @@ def analyze_lane(df_lane, lane_id):
     else:
         pairs["a_follower"] = np.nan
         pairs["a_leader"] = np.nan
-
-    spd = df_lane[["frame", "agent_id", "vx"]].copy()
-    spd["agent_id"] = spd["agent_id"].astype(str)
-    pairs = pairs.merge(
-        spd.rename(columns={"agent_id": "follower_id", "vx": "v_follower"}),
-        on=["frame", "follower_id"], how="left",
-    ).merge(
-        spd.rename(columns={"agent_id": "leader_id", "vx": "v_leader"}),
-        on=["frame", "leader_id"], how="left",
-    )
 
     pairs["lane"] = int(lane_id)
     pairs["TTC_thr_l"] = float(ttc_thr)
